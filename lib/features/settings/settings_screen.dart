@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/constants/app_strings.dart';
 import 'providers/settings_provider.dart';
-import 'widgets/api_key_input.dart';
 import 'widgets/language_toggle.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -19,12 +18,6 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ApiKeyInput(
-            apiKey: settings.apiKey,
-            onChanged: (key) =>
-                ref.read(settingsProvider.notifier).setApiKey(key),
-          ),
-          const SizedBox(height: 24),
           LanguageToggle(
             currentLanguage: settings.language,
             onChanged: (lang) =>

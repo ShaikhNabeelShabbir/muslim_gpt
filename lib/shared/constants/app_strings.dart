@@ -28,8 +28,6 @@ class AppStrings {
 
   // Settings
   static const String settings = 'Settings';
-  static const String apiKey = 'API Key';
-  static const String apiKeyHint = 'Enter your OpenRouter API key';
   static const String language = 'Language';
   static const String english = 'English';
   static const String arabic = 'العربية';
@@ -45,5 +43,5 @@ class AppStrings {
   static const String offTopicResponse =
       'I\'m sorry, I can only help with Islamic questions related to Quran, Hadith, Fiqh, and Islamic knowledge. Please ask an Islam-related question.';
   static const String errorGeneral = 'Something went wrong. Please try again.';
-  static const String noApiKey = 'Please set your API key in Settings first.';
+  static const String noApiKey = 'API key not configured. Please contact support.';
 }
