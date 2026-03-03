@@ -22,10 +22,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.conversationId != null) {
-        ref
-            .read(chatMessagesProvider.notifier)
-            .loadMessages(widget.conversationId!);
+      final notifier = ref.read(chatMessagesProvider.notifier);
+      if (widget.conversationId != null && widget.conversationId != 'new') {
+        notifier.loadMessages(widget.conversationId!);
+      } else {
+        notifier.clearMessages();
       }
     });
   }

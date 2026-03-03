@@ -11,7 +11,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final conversations = ref.watch(conversationsProvider);
+    final conversationsAsync = ref.watch(conversationsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -23,23 +23,30 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: conversations.isEmpty
-          ? const EmptyConversations()
-          : ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: conversations.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final conversation = conversations[index];
-                return ConversationTile(
-                  conversation: conversation,
-                  onTap: () => context.push('/chat/${conversation.id}'),
-                  onDelete: () => ref
-                      .read(conversationsProvider.notifier)
-                      .deleteConversation(conversation.id),
-                );
-              },
-            ),
+      body: conversationsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error: $error')),
+        data: (conversations) {
+          if (conversations.isEmpty) {
+            return const EmptyConversations();
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: conversations.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final conversation = conversations[index];
+              return ConversationTile(
+                conversation: conversation,
+                onTap: () => context.push('/chat/${conversation.id}'),
+                onDelete: () => ref
+                    .read(conversationsProvider.notifier)
+                    .deleteConversation(conversation.id),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/chat/new'),
         child: const Icon(Icons.add),

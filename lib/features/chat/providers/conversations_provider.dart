@@ -1,25 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/conversation.dart';
-import '../../../mock/mock_conversations.dart';
+import '../../../services/db_service.dart';
 
 final conversationsProvider =
-    NotifierProvider<ConversationsNotifier, List<Conversation>>(
+    AsyncNotifierProvider<ConversationsNotifier, List<Conversation>>(
   ConversationsNotifier.new,
 );
 
-class ConversationsNotifier extends Notifier<List<Conversation>> {
+class ConversationsNotifier extends AsyncNotifier<List<Conversation>> {
   @override
-  List<Conversation> build() => List.from(mockConversations);
+  Future<List<Conversation>> build() => DbService.getConversations();
 
-  void addConversation(Conversation conversation) {
-    state = [conversation, ...state];
+  Future<void> addConversation(Conversation conversation) async {
+    await DbService.insertConversation(conversation);
+    state = AsyncData(await DbService.getConversations());
   }
 
-  void deleteConversation(String id) {
-    state = state.where((c) => c.id != id).toList();
+  Future<void> deleteConversation(String id) async {
+    await DbService.deleteConversation(id);
+    state = AsyncData(await DbService.getConversations());
   }
 
-  void updateConversation(Conversation updated) {
-    state = state.map((c) => c.id == updated.id ? updated : c).toList();
+  Future<void> updateConversation(Conversation updated) async {
+    await DbService.updateConversation(updated);
+    state = AsyncData(await DbService.getConversations());
   }
 }
