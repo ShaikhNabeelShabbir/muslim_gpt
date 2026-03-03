@@ -16,6 +16,8 @@ final chatMessagesProvider =
 class ChatNotifier extends Notifier<List<ChatMessage>> {
   String? _conversationId;
 
+  String? get conversationId => _conversationId;
+
   @override
   List<ChatMessage> build() => [];
 
