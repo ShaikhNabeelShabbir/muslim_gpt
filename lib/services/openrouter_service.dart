@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/chat_message.dart';
 import '../models/citation.dart';
 import '../models/message_role.dart';
+import '../models/retrieval_result.dart';
 
 class OpenRouterService {
   static const String _baseUrl =
@@ -11,6 +12,7 @@ class OpenRouterService {
   Future<ChatMessage> sendMessage({
     required List<ChatMessage> conversationHistory,
     required String userMessage,
+    List<RetrievalResult> context = const [],
   }) async {
     final messages = <Map<String, String>>[
       ...conversationHistory
@@ -24,10 +26,15 @@ class OpenRouterService {
       {'role': 'user', 'content': userMessage},
     ];
 
+    final body = <String, dynamic>{'messages': messages};
+    if (context.isNotEmpty) {
+      body['context'] = context.map((r) => r.chunk.toJson()).toList();
+    }
+
     final response = await http.post(
       Uri.parse(_baseUrl),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'messages': messages}),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode != 200) {

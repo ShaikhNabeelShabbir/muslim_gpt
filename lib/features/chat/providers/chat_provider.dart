@@ -3,7 +3,9 @@ import 'package:uuid/uuid.dart';
 import '../../../models/chat_message.dart';
 import '../../../models/conversation.dart';
 import '../../../models/message_role.dart';
+import '../../../services/corpus_loader_service.dart';
 import '../../../services/db_service.dart';
+import '../../../services/embedding_service.dart';
 import '../../../services/openrouter_service.dart';
 import 'conversations_provider.dart';
 
@@ -65,11 +67,19 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     state = [...state, loadingMessage];
 
     try {
+      // Load corpus and embeddings on first use
+      await CorpusLoaderService.instance.load();
+      await EmbeddingService.instance.load();
+
+      // Retrieve top-5 relevant chunks from local corpus
+      final retrievalResults = EmbeddingService.instance.retrieve(content, topK: 5);
+
       final history = state.where((m) => !m.isLoading).toList();
 
       final response = await _openRouter.sendMessage(
         conversationHistory: history.sublist(0, history.length - 1),
         userMessage: content,
+        context: retrievalResults,
       );
 
       state = [

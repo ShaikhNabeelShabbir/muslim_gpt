@@ -32,6 +32,8 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/corpus/chunks.json
+    - assets/corpus/embeddings.bin
 
   fonts:
     - family: AmiriQuran
