@@ -4,7 +4,7 @@
 Eliminate all API costs and network dependency by building a fully offline Islamic Q&A app with:
 1. Local Quran + Hadith corpus (bundled with app)
 2. Local retrieval via embedding similarity (RAG)
-3. On-device SLM inference (no cloud API calls)
+3. Free HuggingFace API for generation (interim) → On-device SLM (future)
 4. Grounded citation rendering from local sources only
 
 ## Scope Guardrails
@@ -30,21 +30,23 @@ Eliminate all API costs and network dependency by building a fully offline Islam
    - Generates 384-dimensional vectors using deterministic FNV-1a hash-based embedding.
 6. **Embeddings output** — `assets/corpus/embeddings.bin` (~61 MB) + `assets/corpus/embeddings_meta.json`
    - 39,974 vectors, normalized, binary format with MGBE magic header.
-7. **Working cloud-based app** — Full chat UI, SQLite persistence, Railway backend with OpenRouter (Kimi K2.5).
+7. **Working cloud-based app** — Full chat UI, SQLite persistence, Railway backend.
+8. **Runtime RAG models** — `lib/models/corpus_chunk.dart`, `lib/models/retrieval_result.dart`.
+9. **Corpus loader** — `lib/services/corpus_loader_service.dart` — loads chunks.json from bundled assets, indexes by ID.
+10. **Embedding + retriever service** — `lib/services/embedding_service.dart` — loads embeddings.bin, embeds queries using identical FNV-1a algorithm, computes cosine similarity, returns top-k results.
+11. **RAG wired into chat flow** — `chat_provider.dart` retrieves top-5 chunks before each API call, `openrouter_service.dart` sends context array to backend.
+12. **Android internet permission** — Added to `AndroidManifest.xml` for release builds.
+13. **Corpus assets registered** — `chunks.json` and `embeddings.bin` added to `pubspec.yaml`.
 
-### Not Yet Built
-1. Runtime Dart models: `corpus_chunk.dart`, `retrieval_result.dart`.
-2. Runtime Dart services: `corpus_loader_service.dart`, `embedding_service.dart`, `retriever_service.dart`, `rag_answer_service.dart`.
-3. Corpus provenance manifest: `sources_manifest.json`.
-4. On-device SLM runtime integration.
-5. Settings toggle for offline vs. remote mode.
+### Not Yet Done
+1. On-device SLM runtime integration (future — Phase 4).
+2. Settings toggle for offline vs. remote mode (future — Phase 5).
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Corpus ✅ COMPLETE
-**What was done:**
 - Quran corpus built (114 surahs, 6,236 ayahs).
 - Hadith corpus built (33,738 hadiths, 6 collections).
 - Chunking pipeline built and run (39,974 chunks).
@@ -52,60 +54,27 @@ Eliminate all API costs and network dependency by building a fully offline Islam
 
 ---
 
-### Phase 2: Runtime RAG Layer (Next Up)
-**Goal:** Load corpus + embeddings in-app and retrieve relevant passages for any user question.
-
-#### Tasks
-1. Create `lib/models/corpus_chunk.dart` — chunk data model matching chunks.json schema.
-2. Create `lib/models/retrieval_result.dart` — ranked result with chunk + similarity score.
-3. Create `lib/services/corpus_loader_service.dart`:
-   - Load `chunks.json` from bundled assets.
-   - Parse into in-memory chunk list.
-   - Index by chunk ID for fast lookup.
-4. Create `lib/services/embedding_service.dart`:
-   - Load `embeddings.bin` from bundled assets (read binary, parse float32 vectors).
-   - Embed user query using same FNV-1a hash function (must match `build_embeddings.dart` logic).
-   - Compute cosine similarity between query vector and all corpus vectors.
-5. Create `lib/services/retriever_service.dart`:
-   - Accept a query string.
-   - Embed it → rank all chunks by cosine similarity → return top-k results.
-   - Map each result back to its source chunk for citation data.
-6. Smoke-test retrieval with known queries:
-   - "What is Ayat al-Kursi?" → should return Quran 2:255.
-   - "Hadith on patience" → should return relevant Bukhari/Muslim hadiths.
-   - "Five pillars of Islam" → should return relevant ayahs and hadiths.
-
-#### Exit Criteria
-1. Retriever returns relevant top-k passages for test queries.
-2. Every result maps to a valid source citation (surah/ayah or collection/hadith number).
-3. No network calls involved.
+### Phase 2: Runtime RAG Layer ✅ COMPLETE
+- `lib/models/corpus_chunk.dart` — chunk data model with `fromJson()`.
+- `lib/models/retrieval_result.dart` — chunk + similarity score wrapper.
+- `lib/services/corpus_loader_service.dart` — singleton, loads chunks.json via rootBundle, indexes by ID.
+- `lib/services/embedding_service.dart` — singleton, loads embeddings.bin, ports exact FNV-1a hash embedding, cosine similarity search, returns top-k `RetrievalResult`.
+- `lib/services/openrouter_service.dart` — updated to accept and send `context` (retrieved chunks) to backend.
+- `lib/features/chat/providers/chat_provider.dart` — updated to load corpus + embeddings on first use, retrieve top-5 chunks before each API call.
+- `pubspec.yaml` — registered `chunks.json` and `embeddings.bin` as bundled assets.
 
 ---
 
-### Phase 3: Local RAG Answer Flow (No SLM)
-**Goal:** Wire retrieval into the chat UI so users get offline answers with citations, using template-based response composition (no language model yet).
-
-#### Tasks
-1. Create `lib/services/rag_answer_service.dart`:
-   - Take user question → call retriever → compose a grounded response from top-k chunks.
-   - Template format: intro text + retrieved passages with citations.
-   - Convert retrieved chunks into `Citation` objects matching existing model.
-2. Add Riverpod provider for RAG service (lazy initialization, load corpus on first use).
-3. Update `chat_provider.dart`:
-   - Add local answer mode alongside existing remote API mode.
-   - Route based on settings toggle.
-4. Add settings toggle in `settings_screen.dart`: "Remote API" vs. "Offline (Local)".
-5. Persist local RAG responses via existing SQLite flow.
-
-#### Exit Criteria
-1. App answers questions offline using local corpus.
-2. Citation cards render correctly from retrieved chunks.
-3. Remote API path still works when selected.
+### Phase 3: Backend Migration to Free HuggingFace API ✅ COMPLETE
+- Deployed updated `index.tsx` to Railway with HuggingFace Router API (`Qwen/Qwen2.5-72B-Instruct`).
+- Backend accepts `context` array and injects retrieved sources into system prompt.
+- `HF_TOKEN` set in Railway environment variables.
+- Smoke-tested end-to-end successfully — grounded citations working.
 
 ---
 
-### Phase 4: On-Device SLM Integration
-**Goal:** Replace template-based answers with natural language generation using a small language model running on-device. Zero API costs.
+### Phase 4: On-Device SLM Integration (Future)
+**Goal:** Replace HuggingFace API with on-device SLM for fully offline operation.
 
 #### Tasks
 1. Evaluate Flutter-compatible on-device inference options:
@@ -133,7 +102,7 @@ Eliminate all API costs and network dependency by building a fully offline Islam
 
 ---
 
-### Phase 5: Cutover to Fully Offline Default
+### Phase 5: Cutover to Fully Offline Default (Future)
 **Goal:** Make offline mode the default. Remove Railway backend dependency.
 
 #### Tasks
@@ -158,18 +127,16 @@ Eliminate all API costs and network dependency by building a fully offline Islam
 
 | Risk | Mitigation |
 |---|---|
-| Large app bundle (~61 MB embeddings + corpus + model) | Compress assets; consider on-demand download for SLM model |
+| Large app bundle (~61 MB embeddings + corpus) | Compress assets; consider on-demand download for SLM model |
 | Low-end device latency for SLM | Start with smallest quantized model; set strict token limits; show streaming output |
 | Citation hallucination by SLM | Resolve citations from retrieval metadata only, never from model output |
 | Hash-based embeddings have low retrieval quality | Current FNV-1a embeddings are bootstrapping only; replace with model-based embeddings (e.g., MiniLM) once SLM runtime is available |
 | Memory pressure loading 40k vectors | Lazy load; consider memory-mapped file access for embeddings |
-| Data licensing ambiguity | Track source/license per dataset in manifest |
+| HuggingFace free tier rate limits | Monitor usage; queue requests if needed; fallback to alternate free model |
 
 ---
 
 ## Immediate Next Actions
-1. Build `corpus_chunk.dart` and `retrieval_result.dart` models.
-2. Build `corpus_loader_service.dart` to load chunks from bundled assets.
-3. Build `embedding_service.dart` to load embeddings and compute similarity.
-4. Build `retriever_service.dart` to return top-k results for a query.
-5. Smoke-test retrieval accuracy with known Islamic queries.
+1. Evaluate retrieval quality — tune top-k or improve embedding approach if results are weak.
+2. Consider replacing FNV-1a hash embeddings with model-based embeddings (e.g., MiniLM) for better retrieval accuracy.
+3. When ready for fully offline: evaluate on-device SLM options (Phase 4).
