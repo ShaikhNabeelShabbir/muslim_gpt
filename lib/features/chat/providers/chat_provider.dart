@@ -6,7 +6,10 @@ import '../../../models/message_role.dart';
 import '../../../services/corpus_loader_service.dart';
 import '../../../services/db_service.dart';
 import '../../../services/embedding_service.dart';
+import '../../../services/local_llm_service.dart';
+import '../../../services/model_download_service.dart';
 import '../../../services/openrouter_service.dart';
+import '../../settings/providers/settings_provider.dart';
 import 'conversations_provider.dart';
 
 const _uuid = Uuid();
@@ -74,13 +77,30 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       // Retrieve top-5 relevant chunks from local corpus
       final retrievalResults = EmbeddingService.instance.retrieve(content, topK: 5);
 
-      final history = state.where((m) => !m.isLoading).toList();
+      // Decide: offline local model or online API
+      final settings = ref.read(settingsProvider);
+      final useOffline = settings.useOfflineMode && settings.modelDownloaded;
 
-      final response = await _openRouter.sendMessage(
-        conversationHistory: history.sublist(0, history.length - 1),
-        userMessage: content,
-        context: retrievalResults,
-      );
+      ChatMessage response;
+
+      if (useOffline) {
+        // Load local model if not already loaded
+        if (!LocalLlmService.instance.isLoaded) {
+          final modelPath = await ModelDownloadService.modelPath;
+          await LocalLlmService.instance.load(modelPath);
+        }
+        response = await LocalLlmService.instance.generate(
+          userMessage: content,
+          context: retrievalResults,
+        );
+      } else {
+        final history = state.where((m) => !m.isLoading).toList();
+        response = await _openRouter.sendMessage(
+          conversationHistory: history.sublist(0, history.length - 1),
+          userMessage: content,
+          context: retrievalResults,
+        );
+      }
 
       state = [
         ...state.where((m) => !m.isLoading),
