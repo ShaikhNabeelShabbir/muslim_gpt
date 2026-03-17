@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 .env
 .ggufassets/models/qwen2.5-1.5b-instruct-q2_k.gguf
+.gguf
