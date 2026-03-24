@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/chat_message.dart';
@@ -13,7 +15,7 @@ import '../../../services/rag_answer_service.dart';
 import 'conversations_provider.dart';
 
 const _uuid = Uuid();
-const _localLlmTimeout = Duration(seconds: 20);
+const _localLlmTimeout = Duration(seconds: 120);
 
 final chatMessagesProvider =
     NotifierProvider<ChatNotifier, List<ChatMessage>>(ChatNotifier.new);
@@ -75,8 +77,8 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       await CorpusLoaderService.instance.load();
       await EmbeddingService.instance.load();
 
-      // Retrieve top-5 relevant chunks from local corpus
-      final retrievalResults = EmbeddingService.instance.retrieve(content, topK: 5);
+      // Retrieve top-3 relevant chunks from local corpus
+      final retrievalResults = EmbeddingService.instance.retrieve(content, topK: 3);
 
       final response = await _buildAssistantResponse(
         userMessage: content,
@@ -136,16 +138,22 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     try {
       if (!LocalLlmService.instance.isLoaded) {
         final modelPath = await ModelExtractorService.modelPath;
+        dev.log('LLM: Loading model from $modelPath');
         await LocalLlmService.instance.load(modelPath);
+        dev.log('LLM: Model loaded successfully');
       }
 
-      return await LocalLlmService.instance
+      dev.log('LLM: Starting inference...');
+      final result = await LocalLlmService.instance
           .generate(
             userMessage: userMessage,
             context: retrievalResults,
           )
           .timeout(_localLlmTimeout);
-    } catch (error) {
+      dev.log('LLM: Inference complete, content length: ${result.content.length}');
+      return result;
+    } catch (error, stack) {
+      dev.log('LLM: Failed - $error', stackTrace: stack);
       return _ragAnswerService.buildResponse(
         userMessage: userMessage,
         retrievalResults: retrievalResults,

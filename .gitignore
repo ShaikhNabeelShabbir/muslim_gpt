@@ -47,3 +47,4 @@ app.*.map.json
 .ggufassets/models/qwen2.5-1.5b-instruct-q2_k.gguf
 .gguf
 /models
+.claude/
