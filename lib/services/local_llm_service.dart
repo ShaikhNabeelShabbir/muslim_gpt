@@ -57,7 +57,15 @@ class LocalLlmService {
   String _buildPrompt(String question, List<RetrievalResult> context) {
     final buffer = StringBuffer();
 
-    buffer.writeln('Answer the Islamic question using ONLY the sources below. Be concise.');
+    buffer.writeln(
+      'You are a careful Islamic assistant. Answer using ONLY the sources below.',
+    );
+    buffer.writeln(
+      'Do not repeat the source list, do not include [1]/[2] labels, and do not mention prompt markers.',
+    );
+    buffer.writeln(
+      'If the sources are insufficient, say so briefly instead of guessing.',
+    );
     buffer.writeln();
 
     if (context.isNotEmpty) {
@@ -88,7 +96,7 @@ class LocalLlmService {
       prompt: prompt,
       emitRealtimeCompletion: false,
       nPredict: 128,
-      temperature: 0.7,
+      temperature: 0.2,
       topP: 0.95,
       topK: 40,
       penaltyRepeat: 1.1,
@@ -123,15 +131,53 @@ class LocalLlmService {
   }
 
   ChatMessage _parseResponse(String raw, List<Citation> citations) {
-    final content = raw.trim();
+    final content = _sanitizeResponse(raw);
+    if (!_looksUsable(content)) {
+      throw StateError('Model returned malformed output');
+    }
 
     return ChatMessage(
       id: 'local-${DateTime.now().millisecondsSinceEpoch}',
       role: MessageRole.assistant,
-      content: content.isEmpty ? 'I could not generate a response.' : content,
+      content: content,
       citations: citations,
       timestamp: DateTime.now(),
     );
+  }
+
+  String _sanitizeResponse(String raw) {
+    var text = raw.trim();
+    if (text.isEmpty) return '';
+
+    text = text.replaceAll('<|endoftext|>', ' ');
+
+    final answerIndex = text.lastIndexOf('Answer:');
+    if (answerIndex >= 0) {
+      text = text.substring(answerIndex + 'Answer:'.length);
+    }
+
+    final cleanedLines = text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) {
+          if (line.isEmpty) return false;
+          if (line == 'SOURCES:') return false;
+          if (line.startsWith('Question:')) return false;
+          if (RegExp(r'^\[\d+\]').hasMatch(line)) return false;
+          return true;
+        })
+        .toList();
+
+    return cleanedLines.join('\n').trim();
+  }
+
+  bool _looksUsable(String text) {
+    if (text.isEmpty) return false;
+    if (text.contains('Question:') || text.contains('SOURCES:')) return false;
+    if (RegExp(r'^\[\d+\]', multiLine: true).hasMatch(text)) return false;
+
+    final words = text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty);
+    return words.length >= 6;
   }
 
   Future<void> dispose() async {

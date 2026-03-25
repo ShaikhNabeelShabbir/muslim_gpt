@@ -35,6 +35,7 @@ flutter:
     - assets/images/
     - assets/corpus/chunks.json
     - assets/corpus/embeddings.bin
+    - assets/corpus/idf_weights.json
     - assets/models/qwen2.5-1.5b-instruct-q2_k.gguf
 
   fonts:
