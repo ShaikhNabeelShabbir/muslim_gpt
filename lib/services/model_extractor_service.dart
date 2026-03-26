@@ -5,8 +5,9 @@ import 'package:path_provider/path_provider.dart';
 
 class ModelExtractorService {
   static const String _assetPath =
-      'assets/models/qwen2.5-1.5b-instruct-q2_k.gguf';
-  static const String _modelFileName = 'qwen2.5-1.5b-instruct-q2_k.gguf';
+      'assets/models/qwen2.5-1.5b-instruct-q4_k_m-00001-of-00001.gguf';
+  static const String _modelFileName =
+      'qwen2.5-1.5b-instruct-q4_k_m-00001-of-00001.gguf';
   static const String _modelsDir = 'models';
 
   static Future<String> get _modelDirPath async {

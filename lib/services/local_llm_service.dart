@@ -21,7 +21,7 @@ class LocalLlmService {
     }
 
     print('LLM: Calling initContext...');
-    final result = await fllama.initContext(modelPath, nCtx: 4096);
+    final result = await fllama.initContext(modelPath, nCtx: 2048);
     _contextId = (result?['contextId'] as num?)?.toDouble();
     if (_contextId == null) {
       throw Exception('Failed to initialize model context');

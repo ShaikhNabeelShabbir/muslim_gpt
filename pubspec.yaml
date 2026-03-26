@@ -36,8 +36,8 @@ flutter:
     - assets/corpus/chunks.json
     - assets/corpus/embeddings.bin
     - assets/corpus/idf_weights.json
-    - assets/models/qwen2.5-1.5b-instruct-q2_k.gguf
-
+    # - assets/models/qwen2.5-1.5b-instruct-q2_k.gguf
+    - assets/models/qwen2.5-1.5b-instruct-q4_k_m-00001-of-00001.gguf
   fonts:
     - family: AmiriQuran
       fonts:
