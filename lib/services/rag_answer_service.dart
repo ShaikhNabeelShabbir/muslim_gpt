@@ -26,7 +26,6 @@ class RagAnswerService {
     final content = _buildContent(
       userMessage: userMessage,
       retrievalResults: retrievalResults,
-      fallbackReason: fallbackReason,
     );
 
     return ChatMessage(
@@ -41,29 +40,58 @@ class RagAnswerService {
   String _buildContent({
     required String userMessage,
     required List<RetrievalResult> retrievalResults,
-    String? fallbackReason,
   }) {
     if (retrievalResults.isEmpty) {
-      return 'I could not find a grounded local reference for "$userMessage". '
-          'Please try rephrasing the question or asking about a Quran verse, hadith, or Islamic topic.';
+      return 'I could not find relevant references for "$userMessage". '
+          'Try rephrasing, or ask about a specific Quran verse, hadith, or Islamic topic.';
     }
 
-    final top = retrievalResults.first.chunk;
+    final topic = _extractTopic(userMessage);
     final lines = <String>[
-      if (fallbackReason != null && fallbackReason.isNotEmpty)
-        'Local retrieval response: $fallbackReason',
-      'I found relevant local references for your question.',
+      'Here is what the Islamic sources say about $topic:',
       '',
-      'Top source: ${top.sourceName} (${top.reference})',
-      if (top.translation.isNotEmpty) top.translation,
-      if (top.translation.isEmpty && top.arabicText.isNotEmpty) top.arabicText,
     ];
 
-    if (retrievalResults.length > 1) {
+    for (final result in retrievalResults) {
+      final chunk = result.chunk;
+      final excerpt = chunk.translation.length > 150
+          ? '${chunk.translation.substring(0, 150)}...'
+          : chunk.translation;
+      lines.add('${chunk.reference} (${chunk.sourceName}):');
+      lines.add('"$excerpt"');
       lines.add('');
-      lines.add('See the attached citations for additional related sources.');
     }
 
+    lines.add('Expand the citations below for the full text including the original Arabic.');
+
     return lines.join('\n');
+  }
+
+  /// Extract a readable topic from the user's question.
+  String _extractTopic(String message) {
+    var topic = message.trim();
+
+    // Remove question marks and trailing punctuation
+    topic = topic.replaceAll(RegExp(r'[?!.]+$'), '').trim();
+
+    // Remove common question prefixes
+    final prefixes = [
+      'what is', 'what are', 'what does', 'what do',
+      'how to', 'how do i', 'how do you', 'how can i',
+      'tell me about', 'explain', 'describe',
+      'give me', 'show me', 'find me',
+      'can you tell me about', 'can you explain',
+      'i want to know about',
+    ];
+
+    final lower = topic.toLowerCase();
+    for (final prefix in prefixes) {
+      if (lower.startsWith(prefix)) {
+        topic = topic.substring(prefix.length).trim();
+        break;
+      }
+    }
+
+    return topic.isEmpty ? 'this topic' : topic;
   }
 }

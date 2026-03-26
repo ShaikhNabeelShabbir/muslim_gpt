@@ -57,31 +57,23 @@ class LocalLlmService {
   String _buildPrompt(String question, List<RetrievalResult> context) {
     final buffer = StringBuffer();
 
-    buffer.writeln(
-      'You are a careful Islamic assistant. Answer using ONLY the sources below.',
-    );
-    buffer.writeln(
-      'Do not repeat the source list, do not include [1]/[2] labels, and do not mention prompt markers.',
-    );
-    buffer.writeln(
-      'If the sources are insufficient, say so briefly instead of guessing.',
-    );
+    buffer.writeln('Based on these Islamic sources, write a brief answer.');
     buffer.writeln();
 
     if (context.isNotEmpty) {
-      buffer.writeln('SOURCES:');
+      buffer.writeln('Sources:');
       for (var i = 0; i < context.length; i++) {
         final chunk = context[i].chunk;
         final translation = chunk.translation.length > 200
             ? '${chunk.translation.substring(0, 200)}...'
             : chunk.translation;
-        buffer.writeln('[${i + 1}] ${chunk.reference}: $translation');
+        buffer.writeln('- ${chunk.reference}: $translation');
       }
       buffer.writeln();
     }
 
-    buffer.writeln('Question: $question');
-    buffer.writeln('Answer:');
+    buffer.writeln('Q: $question');
+    buffer.write('A: According to the sources, ');
 
     return buffer.toString();
   }
@@ -95,7 +87,7 @@ class LocalLlmService {
       _contextId!,
       prompt: prompt,
       emitRealtimeCompletion: false,
-      nPredict: 128,
+      nPredict: 200,
       temperature: 0.2,
       topP: 0.95,
       topK: 40,
@@ -149,26 +141,37 @@ class LocalLlmService {
     var text = raw.trim();
     if (text.isEmpty) return '';
 
-    text = text.replaceAll('<|endoftext|>', ' ');
+    // Remove special tokens
+    text = text.replaceAll('<|endoftext|>', '');
+    text = text.replaceAll('<|im_end|>', '');
 
-    final answerIndex = text.lastIndexOf('Answer:');
-    if (answerIndex >= 0) {
-      text = text.substring(answerIndex + 'Answer:'.length);
+    // Strip any echoed prompt fragments
+    final answerIndex = text.lastIndexOf('A:');
+    if (answerIndex >= 0 && answerIndex < 20) {
+      text = text.substring(answerIndex + 2);
     }
 
+    // Remove source reference lines the model may echo
     final cleanedLines = text
         .split('\n')
         .map((line) => line.trim())
         .where((line) {
           if (line.isEmpty) return false;
-          if (line == 'SOURCES:') return false;
-          if (line.startsWith('Question:')) return false;
-          if (RegExp(r'^\[\d+\]').hasMatch(line)) return false;
+          if (line.startsWith('Sources:')) return false;
+          if (line.startsWith('Q:')) return false;
+          if (RegExp(r'^- \w+[\s:]').hasMatch(line) && line.contains(':')) return false;
           return true;
         })
         .toList();
 
-    return cleanedLines.join('\n').trim();
+    var result = cleanedLines.join('\n').trim();
+
+    // Prepend the completion prefix for a natural reading experience
+    if (result.isNotEmpty && !result.startsWith('According')) {
+      result = 'According to the sources, $result';
+    }
+
+    return result;
   }
 
   bool _looksUsable(String text) {
